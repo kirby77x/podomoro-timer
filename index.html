@@ -9,18 +9,18 @@
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Unbounded:wght@500;700;800&family=Hanken+Grotesk:wght@400;500;600;700&display=swap">
 <style>
   :root {
-    --bg: #17140f;
-    --surface: #211d17;
-    --line: rgba(244, 240, 230, 0.14);
-    --text: #f3efe6;
-    --text-muted: rgba(243, 239, 230, 0.6);
-    --accent: oklch(0.8 0.1 85);
+    --bg: #0f151e;
+    --surface: #182231;
+    --line: rgba(226, 236, 248, 0.16);
+    --text: #eef3f9;
+    --text-muted: rgba(226, 236, 248, 0.66);
+    --accent: oklch(0.74 0.12 235);
     --font-display: 'Unbounded', 'Arial Black', sans-serif;
     --font-body: 'Hanken Grotesk', 'Segoe UI', Arial, sans-serif;
   }
 
   body.break {
-    --accent: oklch(0.8 0.1 230);
+    --accent: oklch(0.78 0.1 195);
   }
 
   * {
@@ -61,7 +61,7 @@
 
   .mode-label {
     font-family: var(--font-body);
-    font-size: 0.95rem;
+    font-size: 1.05rem;
     font-weight: 600;
     letter-spacing: 3px;
     text-transform: uppercase;
@@ -89,7 +89,7 @@
   button {
     padding: 0.85rem 2.1rem;
     font-family: var(--font-body);
-    font-size: 0.85rem;
+    font-size: 0.95rem;
     font-weight: 700;
     letter-spacing: 1.5px;
     text-transform: uppercase;
@@ -201,7 +201,7 @@
 
   .tasks-title {
     font-family: var(--font-body);
-    font-size: 0.85rem;
+    font-size: 0.95rem;
     font-weight: 700;
     letter-spacing: 2px;
     text-transform: uppercase;
@@ -267,7 +267,7 @@
   }
 
   .progress-text {
-    font-size: 0.8rem;
+    font-size: 0.9rem;
     color: var(--text-muted);
   }
 
@@ -281,9 +281,9 @@
     min-width: 0;
     padding: 0.65rem 0.9rem;
     font-family: var(--font-body);
-    font-size: 0.9rem;
+    font-size: 1rem;
     color: var(--text);
-    background-color: rgba(244, 240, 230, 0.04);
+    background-color: rgba(226, 236, 248, 0.05);
     border: 1px solid var(--line);
     border-radius: 12px;
     outline: none;
@@ -301,7 +301,7 @@
   .task-add-btn {
     padding: 0.65rem 1.2rem;
     font-family: var(--font-body);
-    font-size: 0.8rem;
+    font-size: 0.9rem;
     font-weight: 700;
     letter-spacing: 1px;
     text-transform: uppercase;
@@ -338,12 +338,12 @@
     gap: 0.75rem;
     padding: 0.55rem 0.65rem;
     border-radius: 12px;
-    background-color: rgba(244, 240, 230, 0.03);
+    background-color: rgba(226, 236, 248, 0.04);
     transition: background-color 0.2s ease;
   }
 
   .task-item:hover {
-    background-color: rgba(244, 240, 230, 0.07);
+    background-color: rgba(226, 236, 248, 0.08);
   }
 
   .task-checkbox {
@@ -356,7 +356,7 @@
 
   .task-text {
     flex: 1;
-    font-size: 0.9rem;
+    font-size: 1rem;
     line-height: 1.4;
     overflow-wrap: anywhere;
   }
@@ -393,7 +393,7 @@
     margin: 0;
     padding: 0.5rem 0;
     text-align: center;
-    font-size: 0.85rem;
+    font-size: 0.95rem;
     color: var(--text-muted);
   }
 
@@ -422,11 +422,11 @@
 
   @media (max-width: 480px) {
     .timer {
-      font-size: 4.5rem;
+      font-size: 5rem;
     }
     button {
       padding: 0.65rem 1.4rem;
-      font-size: 0.75rem;
+      font-size: 0.85rem;
     }
     .tasks-panel {
       padding: 1.25rem;
