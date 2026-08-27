@@ -1,0 +1,824 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Pomodoro Study Timer</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Unbounded:wght@500;700;800&family=Hanken+Grotesk:wght@400;500;600;700&display=swap">
+<style>
+  :root {
+    --bg: #17140f;
+    --surface: #211d17;
+    --line: rgba(244, 240, 230, 0.14);
+    --text: #f3efe6;
+    --text-muted: rgba(243, 239, 230, 0.6);
+    --accent: oklch(0.8 0.1 85);
+    --font-display: 'Unbounded', 'Arial Black', sans-serif;
+    --font-body: 'Hanken Grotesk', 'Segoe UI', Arial, sans-serif;
+  }
+
+  body.break {
+    --accent: oklch(0.8 0.1 230);
+  }
+
+  * {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+  }
+
+  body {
+    position: relative;
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: var(--font-body);
+    color: var(--text);
+    background-color: var(--bg);
+    background-image: radial-gradient(ellipse 60% 45% at 50% 32%, color-mix(in oklch, var(--accent) 22%, transparent), transparent 70%);
+    transition: background-image 0.8s ease;
+    padding: 2.5rem 1.25rem;
+  }
+
+  body::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    opacity: 0.05;
+    mix-blend-mode: overlay;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  }
+
+  .container {
+    position: relative;
+    text-align: center;
+    flex-shrink: 0;
+  }
+
+  .mode-label {
+    font-family: var(--font-body);
+    font-size: 0.95rem;
+    font-weight: 600;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    margin-bottom: 1.25rem;
+    color: var(--accent);
+    transition: color 0.8s ease;
+  }
+
+  .timer {
+    font-family: var(--font-display);
+    font-size: 7rem;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: 2px;
+    margin-bottom: 2.75rem;
+    color: var(--text);
+  }
+
+  .controls {
+    display: flex;
+    gap: 1rem;
+    justify-content: center;
+  }
+
+  button {
+    padding: 0.85rem 2.1rem;
+    font-family: var(--font-body);
+    font-size: 0.85rem;
+    font-weight: 700;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    cursor: pointer;
+    background-color: transparent;
+    color: var(--text);
+    transition: background-color 0.2s ease, border-color 0.2s ease, transform 0.1s ease, color 0.2s ease;
+  }
+
+  #startBtn {
+    background-color: var(--text);
+    color: var(--bg);
+    border-color: var(--text);
+  }
+
+  #startBtn:hover:not(:disabled) {
+    background-color: var(--accent);
+    border-color: var(--accent);
+    color: var(--bg);
+  }
+
+  button:hover:not(:disabled):not(#startBtn) {
+    border-color: var(--text);
+  }
+
+  button:active:not(:disabled) {
+    transform: scale(0.96);
+  }
+
+  button:disabled {
+    opacity: 0.35;
+    cursor: not-allowed;
+  }
+
+  /* ---- Secondary Controls ---- */
+
+  .secondary-controls {
+    display: flex;
+    justify-content: center;
+    margin-top: 1rem;
+  }
+
+  #taskListToggleBtn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
+  #taskListToggleBtn[aria-pressed="true"] {
+    border-color: var(--accent);
+    color: var(--accent);
+  }
+
+  /* ---- Task List ---- */
+
+  .tasks-panel {
+    position: fixed;
+    top: 50%;
+    right: clamp(1.5rem, 3vw, 3rem);
+    transform: translateY(-50%);
+    width: 320px;
+    max-height: calc(100vh - 3rem);
+    overflow-y: auto;
+    background-color: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 20px;
+    padding: 1.75rem;
+    display: flex;
+    flex-direction: column;
+    gap: 1.25rem;
+    text-align: left;
+    transition: box-shadow 0.2s ease;
+  }
+
+  .tasks-panel.dragging {
+    box-shadow: 0 24px 56px rgba(0, 0, 0, 0.5);
+  }
+
+  .tasks-panel[hidden] {
+    display: none;
+  }
+
+  .tasks-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    cursor: grab;
+    user-select: none;
+    touch-action: none;
+  }
+
+  body[data-panel-locked="true"] .tasks-header {
+    cursor: default;
+  }
+
+  .drag-handle {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+  }
+
+  .grip-icon {
+    color: var(--text-muted);
+    flex-shrink: 0;
+  }
+
+  .tasks-title {
+    font-family: var(--font-body);
+    font-size: 0.85rem;
+    font-weight: 700;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--text-muted);
+  }
+
+  .panel-lock-btn {
+    width: 26px;
+    height: 26px;
+    padding: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    background-color: transparent;
+    color: var(--text-muted);
+    cursor: pointer;
+    transition: border-color 0.2s ease, color 0.2s ease, background-color 0.2s ease;
+  }
+
+  .panel-lock-btn:hover {
+    border-color: var(--text);
+    color: var(--text);
+  }
+
+  .panel-lock-btn[aria-pressed="true"] {
+    border-color: var(--accent);
+    color: var(--accent);
+  }
+
+  .panel-lock-btn .icon-locked {
+    display: none;
+  }
+
+  .panel-lock-btn[aria-pressed="true"] .icon-unlocked {
+    display: none;
+  }
+
+  .panel-lock-btn[aria-pressed="true"] .icon-locked {
+    display: block;
+  }
+
+  .tasks-progress {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+
+  .progress-track {
+    width: 100%;
+    height: 6px;
+    border-radius: 999px;
+    background-color: var(--line);
+    overflow: hidden;
+  }
+
+  .progress-fill {
+    height: 100%;
+    background-color: var(--accent);
+    border-radius: 999px;
+    transition: width 0.3s ease, background-color 0.8s ease;
+  }
+
+  .progress-text {
+    font-size: 0.8rem;
+    color: var(--text-muted);
+  }
+
+  .task-form {
+    display: flex;
+    gap: 0.6rem;
+  }
+
+  .task-input {
+    flex: 1;
+    min-width: 0;
+    padding: 0.65rem 0.9rem;
+    font-family: var(--font-body);
+    font-size: 0.9rem;
+    color: var(--text);
+    background-color: rgba(244, 240, 230, 0.04);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    outline: none;
+    transition: border-color 0.2s ease;
+  }
+
+  .task-input::placeholder {
+    color: var(--text-muted);
+  }
+
+  .task-input:focus {
+    border-color: var(--accent);
+  }
+
+  .task-add-btn {
+    padding: 0.65rem 1.2rem;
+    font-family: var(--font-body);
+    font-size: 0.8rem;
+    font-weight: 700;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    border: 1px solid var(--text);
+    border-radius: 12px;
+    cursor: pointer;
+    background-color: var(--text);
+    color: var(--bg);
+    transition: background-color 0.2s ease, border-color 0.2s ease, opacity 0.2s ease;
+  }
+
+  .task-add-btn:hover:not(:disabled) {
+    background-color: var(--accent);
+    border-color: var(--accent);
+  }
+
+  .task-add-btn:disabled {
+    opacity: 0.35;
+    cursor: not-allowed;
+  }
+
+  .task-list {
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    max-height: 280px;
+    overflow-y: auto;
+  }
+
+  .task-item {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.55rem 0.65rem;
+    border-radius: 12px;
+    background-color: rgba(244, 240, 230, 0.03);
+    transition: background-color 0.2s ease;
+  }
+
+  .task-item:hover {
+    background-color: rgba(244, 240, 230, 0.07);
+  }
+
+  .task-checkbox {
+    width: 19px;
+    height: 19px;
+    flex-shrink: 0;
+    accent-color: var(--accent);
+    cursor: pointer;
+  }
+
+  .task-text {
+    flex: 1;
+    font-size: 0.9rem;
+    line-height: 1.4;
+    overflow-wrap: anywhere;
+  }
+
+  .task-text.completed {
+    color: var(--text-muted);
+    text-decoration: line-through;
+  }
+
+  .task-delete {
+    flex-shrink: 0;
+    width: 26px;
+    height: 26px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    font-size: 1rem;
+    line-height: 1;
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    background-color: transparent;
+    color: var(--text-muted);
+    cursor: pointer;
+    transition: border-color 0.2s ease, color 0.2s ease;
+  }
+
+  .task-delete:hover {
+    border-color: var(--text);
+    color: var(--text);
+  }
+
+  .tasks-empty {
+    margin: 0;
+    padding: 0.5rem 0;
+    text-align: center;
+    font-size: 0.85rem;
+    color: var(--text-muted);
+  }
+
+  @media (max-width: 1100px) {
+    body {
+      flex-direction: column;
+      gap: 2.5rem;
+    }
+
+    .tasks-panel {
+      position: static !important;
+      left: auto !important;
+      top: auto !important;
+      right: auto !important;
+      transform: none !important;
+      width: 100% !important;
+      max-width: 420px !important;
+      max-height: none !important;
+      overflow-y: visible !important;
+    }
+
+    .tasks-header {
+      cursor: default;
+    }
+  }
+
+  @media (max-width: 480px) {
+    .timer {
+      font-size: 4.5rem;
+    }
+    button {
+      padding: 0.65rem 1.4rem;
+      font-size: 0.75rem;
+    }
+    .tasks-panel {
+      padding: 1.25rem;
+    }
+  }
+</style>
+</head>
+<body>
+
+<div class="container">
+  <div class="mode-label" id="modeLabel">Focus</div>
+  <div class="timer" id="timerDisplay">25:00</div>
+  <div class="controls">
+    <button id="startBtn">Start</button>
+    <button id="pauseBtn" disabled>Pause</button>
+    <button id="resetBtn">Reset</button>
+  </div>
+
+  <div class="secondary-controls">
+    <button type="button" id="taskListToggleBtn" aria-pressed="true" aria-label="Hide task list">
+      <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2.5 4h1.5M2.5 8h1.5M2.5 12h1.5"/><path d="M6.5 4h7M6.5 8h7M6.5 12h7"/></svg>
+      Task List
+    </button>
+  </div>
+</div>
+
+<aside class="tasks-panel">
+  <div class="tasks-header" id="tasksHeader">
+    <div class="drag-handle">
+      <svg class="grip-icon" width="10" height="14" viewBox="0 0 10 14" fill="currentColor" aria-hidden="true">
+        <circle cx="2" cy="2" r="1.3"/><circle cx="8" cy="2" r="1.3"/>
+        <circle cx="2" cy="7" r="1.3"/><circle cx="8" cy="7" r="1.3"/>
+        <circle cx="2" cy="12" r="1.3"/><circle cx="8" cy="12" r="1.3"/>
+      </svg>
+      <span class="tasks-title">Task List</span>
+    </div>
+    <button type="button" class="panel-lock-btn" id="panelLockBtn" aria-pressed="false" aria-label="Lock task list position">
+      <svg class="icon-unlocked" width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="7" width="10" height="7" rx="1.5"/><path d="M5.5 7V5a2.5 2.5 0 0 1 4.5-1.5"/></svg>
+      <svg class="icon-locked" width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="7" width="10" height="7" rx="1.5"/><path d="M5.5 7V5a2.5 2.5 0 0 1 5 0v2"/></svg>
+    </button>
+  </div>
+
+  <div class="tasks-progress">
+    <div class="progress-track">
+      <div class="progress-fill" id="progressFill" style="width: 0%"></div>
+    </div>
+    <span class="progress-text" id="progressText">0 of 0 tasks completed</span>
+  </div>
+
+  <form class="task-form" id="taskForm" autocomplete="off">
+    <input type="text" class="task-input" id="taskInput" placeholder="Add a task&hellip;" maxlength="120">
+    <button type="submit" class="task-add-btn" id="taskAddBtn" disabled>Add</button>
+  </form>
+
+  <ul class="task-list" id="taskList"></ul>
+  <p class="tasks-empty" id="tasksEmpty">No tasks yet &mdash; add one to get started.</p>
+</aside>
+
+<script>
+  const FOCUS_DURATION = 25 * 60;
+  const BREAK_DURATION = 5 * 60;
+
+  const timerDisplay = document.getElementById('timerDisplay');
+  const modeLabel = document.getElementById('modeLabel');
+  const startBtn = document.getElementById('startBtn');
+  const pauseBtn = document.getElementById('pauseBtn');
+  const resetBtn = document.getElementById('resetBtn');
+
+  let secondsLeft = FOCUS_DURATION;
+  let isBreak = false;
+  let intervalId = null;
+
+  function formatTime(seconds) {
+    const m = Math.floor(seconds / 60).toString().padStart(2, '0');
+    const s = (seconds % 60).toString().padStart(2, '0');
+    return `${m}:${s}`;
+  }
+
+  function updateDisplay() {
+    timerDisplay.textContent = formatTime(secondsLeft);
+    modeLabel.textContent = isBreak ? 'Break' : 'Focus';
+    document.body.classList.toggle('break', isBreak);
+  }
+
+  function switchMode() {
+    isBreak = !isBreak;
+    secondsLeft = isBreak ? BREAK_DURATION : FOCUS_DURATION;
+    updateDisplay();
+  }
+
+  function tick() {
+    if (secondsLeft > 0) {
+      secondsLeft--;
+      updateDisplay();
+    } else {
+      switchMode();
+    }
+  }
+
+  function startTimer() {
+    if (intervalId !== null) return;
+    intervalId = setInterval(tick, 1000);
+    startBtn.disabled = true;
+    pauseBtn.disabled = false;
+  }
+
+  function pauseTimer() {
+    clearInterval(intervalId);
+    intervalId = null;
+    startBtn.disabled = false;
+    pauseBtn.disabled = true;
+  }
+
+  function resetTimer() {
+    clearInterval(intervalId);
+    intervalId = null;
+    isBreak = false;
+    secondsLeft = FOCUS_DURATION;
+    updateDisplay();
+    startBtn.disabled = false;
+    pauseBtn.disabled = true;
+  }
+
+  startBtn.addEventListener('click', startTimer);
+  pauseBtn.addEventListener('click', pauseTimer);
+  resetBtn.addEventListener('click', resetTimer);
+
+  updateDisplay();
+
+  // ---- Task List ----
+
+  const TASKS_STORAGE_KEY = 'pomodoroTasks';
+
+  const taskForm = document.getElementById('taskForm');
+  const taskInput = document.getElementById('taskInput');
+  const taskAddBtn = document.getElementById('taskAddBtn');
+  const taskList = document.getElementById('taskList');
+  const tasksEmpty = document.getElementById('tasksEmpty');
+  const progressFill = document.getElementById('progressFill');
+  const progressText = document.getElementById('progressText');
+
+  function loadTasks() {
+    try {
+      const raw = localStorage.getItem(TASKS_STORAGE_KEY);
+      const parsed = raw ? JSON.parse(raw) : [];
+      return Array.isArray(parsed) ? parsed : [];
+    } catch (err) {
+      return [];
+    }
+  }
+
+  function saveTasks() {
+    localStorage.setItem(TASKS_STORAGE_KEY, JSON.stringify(tasks));
+  }
+
+  function makeTaskId() {
+    return `t-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+  }
+
+  let tasks = loadTasks();
+
+  function renderTasks() {
+    taskList.innerHTML = '';
+
+    tasks.forEach((task) => {
+      const li = document.createElement('li');
+      li.className = 'task-item';
+
+      const checkbox = document.createElement('input');
+      checkbox.type = 'checkbox';
+      checkbox.className = 'task-checkbox';
+      checkbox.checked = task.completed;
+      checkbox.setAttribute('aria-label', `Mark "${task.text}" as ${task.completed ? 'not completed' : 'completed'}`);
+      checkbox.addEventListener('change', () => toggleTask(task.id));
+
+      const text = document.createElement('span');
+      text.className = 'task-text' + (task.completed ? ' completed' : '');
+      text.textContent = task.text;
+
+      const deleteBtn = document.createElement('button');
+      deleteBtn.type = 'button';
+      deleteBtn.className = 'task-delete';
+      deleteBtn.setAttribute('aria-label', `Delete "${task.text}"`);
+      deleteBtn.textContent = '×';
+      deleteBtn.addEventListener('click', () => deleteTask(task.id));
+
+      li.appendChild(checkbox);
+      li.appendChild(text);
+      li.appendChild(deleteBtn);
+      taskList.appendChild(li);
+    });
+
+    tasksEmpty.style.display = tasks.length === 0 ? 'block' : 'none';
+
+    const completedCount = tasks.filter((t) => t.completed).length;
+    const total = tasks.length;
+    progressText.textContent = `${completedCount} of ${total} task${total === 1 ? '' : 's'} completed`;
+    progressFill.style.width = total === 0 ? '0%' : `${Math.round((completedCount / total) * 100)}%`;
+  }
+
+  function addTask(rawText) {
+    const trimmed = rawText.trim();
+    if (!trimmed) return;
+    tasks.push({ id: makeTaskId(), text: trimmed, completed: false });
+    saveTasks();
+    renderTasks();
+  }
+
+  function toggleTask(id) {
+    const task = tasks.find((t) => t.id === id);
+    if (!task) return;
+    task.completed = !task.completed;
+    saveTasks();
+    renderTasks();
+  }
+
+  function deleteTask(id) {
+    tasks = tasks.filter((t) => t.id !== id);
+    saveTasks();
+    renderTasks();
+  }
+
+  taskInput.addEventListener('input', () => {
+    taskAddBtn.disabled = taskInput.value.trim().length === 0;
+  });
+
+  taskForm.addEventListener('submit', (e) => {
+    e.preventDefault();
+    if (!taskInput.value.trim()) return;
+    addTask(taskInput.value);
+    taskInput.value = '';
+    taskAddBtn.disabled = true;
+    taskInput.focus();
+  });
+
+  renderTasks();
+
+  // ---- Task Panel Drag & Lock ----
+
+  const PANEL_SETTINGS_KEY = 'pomodoroPanelSettings';
+  const DRAG_BREAKPOINT = 1100;
+
+  const tasksPanel = document.querySelector('.tasks-panel');
+  const tasksHeader = document.getElementById('tasksHeader');
+  const lockBtn = document.getElementById('panelLockBtn');
+
+  function loadPanelSettings() {
+    try {
+      const raw = localStorage.getItem(PANEL_SETTINGS_KEY);
+      const parsed = raw ? JSON.parse(raw) : null;
+      const x = parsed && typeof parsed.x === 'number' ? parsed.x : null;
+      const y = parsed && typeof parsed.y === 'number' ? parsed.y : null;
+      const locked = !!(parsed && parsed.locked);
+      return { x, y, locked };
+    } catch (err) {
+      return { x: null, y: null, locked: false };
+    }
+  }
+
+  function savePanelSettings() {
+    localStorage.setItem(PANEL_SETTINGS_KEY, JSON.stringify(panelSettings));
+  }
+
+  let panelSettings = loadPanelSettings();
+  let dragState = null;
+
+  function clampNum(value, min, max) {
+    return Math.min(Math.max(value, min), max);
+  }
+
+  function clampToViewport(x, y) {
+    const maxX = Math.max(window.innerWidth - tasksPanel.offsetWidth, 0);
+    const maxY = Math.max(window.innerHeight - tasksPanel.offsetHeight, 0);
+    return { x: clampNum(x, 0, maxX), y: clampNum(y, 0, maxY) };
+  }
+
+  function applyPanelPosition() {
+    if (panelSettings.x === null || panelSettings.y === null) return;
+    const { x, y } = clampToViewport(panelSettings.x, panelSettings.y);
+    tasksPanel.style.left = `${x}px`;
+    tasksPanel.style.top = `${y}px`;
+    tasksPanel.style.right = 'auto';
+    tasksPanel.style.transform = 'none';
+  }
+
+  function applyLockState() {
+    document.body.setAttribute('data-panel-locked', String(panelSettings.locked));
+    lockBtn.setAttribute('aria-pressed', String(panelSettings.locked));
+    lockBtn.setAttribute('aria-label', panelSettings.locked ? 'Unlock task list position' : 'Lock task list position');
+  }
+
+  function isDraggable() {
+    return !panelSettings.locked && window.innerWidth > DRAG_BREAKPOINT;
+  }
+
+  applyPanelPosition();
+  applyLockState();
+
+  tasksHeader.addEventListener('pointerdown', (e) => {
+    if (!isDraggable()) return;
+    if (e.target.closest('.panel-lock-btn')) return;
+
+    const rect = tasksPanel.getBoundingClientRect();
+    dragState = {
+      pointerId: e.pointerId,
+      offsetX: e.clientX - rect.left,
+      offsetY: e.clientY - rect.top,
+    };
+
+    tasksPanel.style.left = `${rect.left}px`;
+    tasksPanel.style.top = `${rect.top}px`;
+    tasksPanel.style.right = 'auto';
+    tasksPanel.style.transform = 'none';
+
+    tasksPanel.classList.add('dragging');
+    tasksHeader.style.cursor = 'grabbing';
+    tasksHeader.setPointerCapture(e.pointerId);
+  });
+
+  tasksHeader.addEventListener('pointermove', (e) => {
+    if (!dragState || e.pointerId !== dragState.pointerId) return;
+    const { x, y } = clampToViewport(e.clientX - dragState.offsetX, e.clientY - dragState.offsetY);
+    tasksPanel.style.left = `${x}px`;
+    tasksPanel.style.top = `${y}px`;
+  });
+
+  function endDrag(e) {
+    if (!dragState || (e && e.pointerId !== dragState.pointerId)) return;
+    tasksHeader.releasePointerCapture(dragState.pointerId);
+    tasksPanel.classList.remove('dragging');
+    tasksHeader.style.cursor = '';
+
+    const rect = tasksPanel.getBoundingClientRect();
+    panelSettings.x = rect.left;
+    panelSettings.y = rect.top;
+    savePanelSettings();
+
+    dragState = null;
+  }
+
+  tasksHeader.addEventListener('pointerup', endDrag);
+  tasksHeader.addEventListener('pointercancel', endDrag);
+
+  lockBtn.addEventListener('click', () => {
+    panelSettings.locked = !panelSettings.locked;
+    savePanelSettings();
+    applyLockState();
+  });
+
+  window.addEventListener('resize', () => {
+    if (panelSettings.x === null || panelSettings.y === null) return;
+    applyPanelPosition();
+  });
+
+  // ---- Task List Visibility ----
+
+  const TASK_LIST_VISIBLE_KEY = 'pomodoroTaskListVisible';
+
+  const taskListToggleBtn = document.getElementById('taskListToggleBtn');
+
+  function loadTaskListVisible() {
+    try {
+      const raw = localStorage.getItem(TASK_LIST_VISIBLE_KEY);
+      return raw === null ? true : raw === 'true';
+    } catch (err) {
+      return true;
+    }
+  }
+
+  function saveTaskListVisible(visible) {
+    try {
+      localStorage.setItem(TASK_LIST_VISIBLE_KEY, String(visible));
+    } catch (err) {
+      // localStorage may be unavailable (e.g. private browsing); nothing to do.
+    }
+  }
+
+  function applyTaskListVisible(visible) {
+    tasksPanel.hidden = !visible;
+    taskListToggleBtn.setAttribute('aria-pressed', String(visible));
+    taskListToggleBtn.setAttribute('aria-label', visible ? 'Hide task list' : 'Show task list');
+  }
+
+  let taskListVisible = loadTaskListVisible();
+  applyTaskListVisible(taskListVisible);
+
+  taskListToggleBtn.addEventListener('click', () => {
+    taskListVisible = !taskListVisible;
+    saveTaskListVisible(taskListVisible);
+    applyTaskListVisible(taskListVisible);
+  });
+</script>
+
+</body>
+</html>
